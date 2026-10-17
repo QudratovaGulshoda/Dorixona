@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { DEBT_DUE_SOON_DAYS, DEBT_URGENT_DAYS } from "@/lib/queries";
 import { debtAlertMessage, debtSummary } from "@/lib/telegram/digest";
 import { recipientsFor, sendTelegram } from "@/lib/telegram/notify";
+import { isDebtAlertOn } from "@/lib/app-settings";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -73,7 +74,11 @@ async function handle(request: NextRequest) {
   const dryRun = params.get("tekshir") === "1" || params.get("debug") === "1";
   const force = params.get("majburan") === "1" || params.get("force") === "1";
 
-  const [summary, recipients] = await Promise.all([debtSummary(), recipientsFor("qarzlar")]);
+  const [summary, recipients, alertOn] = await Promise.all([
+    debtSummary(),
+    recipientsFor("qarzlar"),
+    isDebtAlertOn(),
+  ]);
 
   const red = summary.overdue.length + summary.urgent.length;
   const text = debtAlertMessage(summary);
@@ -92,10 +97,16 @@ async function handle(request: NextRequest) {
     oluvchilar: recipients.map((r) => ({ chatId: r.chatId, kim: r.name, manba: r.source })),
     botToken: Boolean(process.env.TELEGRAM_BOT_TOKEN?.trim()),
     xabarBor: Boolean(text),
+    eslatmaYoqilgan: alertOn,
   };
 
   if (dryRun) {
     return NextResponse.json({ ...holat, rejim: "tekshiruv", xabar: text });
+  }
+
+  // Dorixona egasi Qarzlar bo'limidan o'chirib qo'ygan bo'lsa yubormaymiz
+  if (!alertOn) {
+    return NextResponse.json({ ...holat, yuborildi: 0, sabab: "eslatma o'chirilgan" });
   }
 
   if (!text) {

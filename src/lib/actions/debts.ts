@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { recalcDebt } from "@/lib/debts";
+import { DEBT_ALERT_KEY, writeFlag } from "@/lib/app-settings";
 import { activeBranch, fail, requireUser, type ActionResult } from "./_shared";
 
 /**
@@ -143,6 +144,18 @@ export async function deleteDebt(id: string): Promise<ActionResult> {
     if (!id) return { ok: false, error: "Qarz topilmadi" };
     await db.debt.delete({ where: { id } });
     revalidateAll();
+    return { ok: true };
+  } catch (e) {
+    return fail(e);
+  }
+}
+
+/** Qarz eslatmasi Telegram'ga yuborilsinmi — Qarzlar bo'limidagi kalitcha */
+export async function setDebtAlert(enabled: boolean): Promise<ActionResult> {
+  try {
+    await requireUser();
+    await writeFlag(DEBT_ALERT_KEY, enabled);
+    revalidatePath("/qarzlar");
     return { ok: true };
   } catch (e) {
     return fail(e);

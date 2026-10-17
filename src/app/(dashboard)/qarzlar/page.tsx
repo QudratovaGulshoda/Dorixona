@@ -3,6 +3,8 @@ import { DebtsPanel } from "@/components/panels/DebtsPanel";
 import { FILIALS } from "@/lib/filial";
 import { formatDate, formatNumber } from "@/lib/format";
 import { getDebtsData } from "@/lib/queries";
+import { isDebtAlertOn } from "@/lib/app-settings";
+import { DebtAlertToggle } from "@/components/DebtAlertToggle";
 
 export const dynamic = "force-dynamic";
 
@@ -11,7 +13,7 @@ function money(amount: number, currency: "UZS" | "USD") {
 }
 
 export default async function QarzlarPage() {
-  const d = await getDebtsData();
+  const [d, alertOn] = await Promise.all([getDebtsData(), isDebtAlertOn()]);
   const units = FILIALS.filter((unit) => unit !== "Umumiy");
 
   return (
@@ -28,6 +30,10 @@ export default async function QarzlarPage() {
           ishlaydi.
         </div>
       )}
+
+      <div className="mb-5 sm:max-w-md">
+        <DebtAlertToggle enabled={alertOn} />
+      </div>
 
       {(d.overdue.length > 0 || d.dueSoon.length > 0) && (
         <div className="mb-5 space-y-2">
