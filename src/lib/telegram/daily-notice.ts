@@ -69,6 +69,8 @@ export type NoticeOptions = {
   permission: AppPermission;
   buttonText: string;
   section: string;
+  /** Sahifadagi kalitcha bilan o'chirilgan bo'lsa false — xabar ketmaydi */
+  enabled?: () => Promise<boolean>;
   /** Xabar matni; ogohlantiradigan narsa bo'lmasa null */
   build: () => Promise<{ text: string | null; holat: Record<string, unknown> }>;
 };
@@ -83,9 +85,10 @@ export async function runDailyNotice(request: NextRequest, options: NoticeOption
   const force = params.get("majburan") === "1";
 
   const hour = tashkentHour();
-  const [{ text, holat }, recipients] = await Promise.all([
+  const [{ text, holat }, recipients, enabled] = await Promise.all([
     options.build(),
     recipientsFor(options.permission),
+    options.enabled ? options.enabled() : true,
   ]);
 
   const javob = {
@@ -94,10 +97,12 @@ export async function runDailyNotice(request: NextRequest, options: NoticeOption
     kerakliSoat: options.minHour,
     xabarBor: Boolean(text),
     oluvchilar: recipients.map((r) => ({ chatId: r.chatId, kim: r.name, manba: r.source })),
+    eslatmaYoqilgan: enabled,
     ...holat,
   };
 
   if (dryRun) return NextResponse.json({ ...javob, rejim: "tekshiruv", xabar: text });
+  if (!enabled) return NextResponse.json({ ...javob, yuborildi: 0, sabab: "eslatma o'chirilgan" });
   if (!text) return NextResponse.json({ ...javob, yuborildi: 0, sabab: "aytadigan narsa yo'q" });
   if (!force && hour < options.minHour) {
     return NextResponse.json({ ...javob, yuborildi: 0, sabab: `hali erta (${options.minHour}:00 dan keyin)` });

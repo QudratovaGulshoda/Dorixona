@@ -9,6 +9,7 @@ import {
   paymentBreakdown,
   salesSplit,
 } from "@/lib/queries";
+import type { checkWatchedPrices, PriceMismatch } from "@/lib/price-watch";
 
 /**
  * Telegram uchun tayyor xabarlar. Bot buyruqlari ham, kunlik eslatma ham
@@ -404,6 +405,50 @@ export async function priceMessage() {
   ];
 
   return parts.filter(Boolean).join("\n");
+}
+
+/** Bir ro'yxatda shuncha dori — qolgani saytda (Telegram 4096 belgidan oshmasin) */
+const PRICE_ALERT_LINES = 12;
+
+/**
+ * Narx eslatmasi: arzonaptekada kuzatilayotgan dorilardan narxi tavsiyaga
+ * mos kelmaganlari, dorixona bo'yicha. Narx F-Apteka'da qo'lda
+ * o'zgartiriladi — xabar shuning uchun aniq yangi narxni aytadi.
+ *
+ * Hamma dorixonada hammasi joyida bo'lsa null — xabar yuborilmaydi.
+ */
+export function priceAlertMessage(check: Awaited<ReturnType<typeof checkWatchedPrices>>) {
+  const active = check.units.filter((unit) => unit.enabled);
+  const wrong = active.reduce((sum, unit) => sum + unit.lower.length + unit.raise.length, 0);
+  if (!wrong) return null;
+
+  const line = (item: PriceMismatch) =>
+    `• ${esc(item.name)}${item.ownPercent !== null ? ` <i>(${item.ownPercent}%)</i>` : ""} — ` +
+    `${som(item.our)} → <b>${som(item.suggested)}</b>`;
+  const list = (title: string, items: PriceMismatch[]) =>
+    items.length
+      ? `${title} (${items.length} ta):\n${items.slice(0, PRICE_ALERT_LINES).map(line).join("\n")}` +
+        (items.length > PRICE_ALERT_LINES ? `\n  … yana ${items.length - PRICE_ALERT_LINES} ta — saytda` : "")
+      : "";
+
+  const blocks = active.map((unit) => {
+    const head = `🏪 <b>${esc(unit.unit)}</b> · ustama ${unit.percent}%`;
+    if (!unit.lower.length && !unit.raise.length) {
+      return `${head}\n✅ ${unit.checked} ta dori — hammasi tavsiyaga mos`;
+    }
+    return [head, list("🔻 Tushirish kerak", unit.lower), list("🔺 Ko'tarish mumkin", unit.raise)]
+      .filter(Boolean)
+      .join("\n");
+  });
+
+  return [
+    `💹 <b>Narxni F-Apteka'da to'g'rilang</b>`,
+    `Arzonaptekadagi eng arzon narx + ustama. Hozirgi narx → <b>qo'yiladigan narx</b>.`,
+    ...blocks.map((block) => `\n${block}`),
+    check.checkedAt ? `\n<i>Arzonapteka narxlari: ${formatDateTime(check.checkedAt)} holatiga</i>` : "",
+  ]
+    .filter(Boolean)
+    .join("\n");
 }
 
 /** /hisobot — bir xabarda kunlik jamlanma */

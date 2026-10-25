@@ -512,6 +512,10 @@ model PriceWatch {
   /// Shu doriga alohida ustama; bo'sh bo'lsa dorixona sozlamasi ishlatiladi
   percent         Decimal?  @db.Decimal(5, 2)
   active          Boolean   @default(true)
+  /// "Narx nazorati ro'yxati"dagi dori. false — faqat ustama foizi uchun
+  /// yaratilgan qator. Ustun ilova tomonidan o'zi qo'shiladi
+  /// (ensurePriceWatchListed), qo'lda SQL shart emas.
+  listed          Boolean   @default(false)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @default(now()) @updatedAt

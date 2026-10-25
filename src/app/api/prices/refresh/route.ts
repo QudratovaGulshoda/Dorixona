@@ -38,6 +38,7 @@ async function handle(request: NextRequest) {
         rowCount: result.checked,
         note:
           `yangilandi: ${result.updated}, omborga bog'landi: ${result.linked}` +
+          (result.searched ? `, izlandi: ${result.searched} (topildi ${result.found})` : "") +
           (result.errors.length ? ` | ${result.errors.slice(0, 3).join("; ")}` : ""),
         ok: result.ok,
       },

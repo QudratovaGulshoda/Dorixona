@@ -506,7 +506,7 @@ export function PricePanel({
               />
             </Field>
             <a
-              href={`https://arzonapteka.uz/uz/search?text=${encodeURIComponent(linking.name)}`}
+              href={`https://arzonapteka.uz/uz/search?q=${encodeURIComponent(linking.name)}`}
               target="_blank"
               rel="noreferrer"
               className="block text-xs text-primary hover:underline"

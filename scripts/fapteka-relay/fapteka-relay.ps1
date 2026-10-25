@@ -57,6 +57,8 @@ if (Test-Path $SqlFile) { $SqlConn = (Get-Content $SqlFile -Raw).Trim() }
 $NoticeUrls = [ordered]@{
   "kunlik xulosa"      = "https://dorixonaa.vercel.app/api/notifications/kunlik"
   "ombor eslatmasi"    = "https://dorixonaa.vercel.app/api/notifications/ombor"
+  # Arzonaptekadagi dorilardan narxi tavsiyaga mos kelmaganlari (10:00 dan keyin)
+  "narx eslatmasi"     = "https://dorixonaa.vercel.app/api/notifications/narx"
   # Doimiy xarajatlar har oy 5-sanada shu oyga ko'chiriladi - Vercel Cron'ga
   # bog'liq bo'lmasin; oyiga bir marta ishlaydi, keyin "already" qaytaradi
   "doimiy xarajatlar"  = "https://dorixonaa.vercel.app/api/expenses/recurring"
@@ -152,7 +154,7 @@ if ($Token -eq "BU_YERGA_TOKEN" -or -not $Token) {
   exit 1
 }
 
-Write-Log "relay v27 boshlandi (-Days bilan hammasi orqaga to'ldiriladi)"
+Write-Log "relay v28 boshlandi (narx eslatmasi)"
 
 # ---- Avval F-Apteka API ishlayotganini tekshiramiz ------------------------
 # Aks holda har kun uchun bir xil "ulanib bo'lmadi" xatosi chiqib, sabab

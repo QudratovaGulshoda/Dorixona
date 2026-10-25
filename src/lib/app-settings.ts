@@ -51,3 +51,16 @@ export const DEBT_ALERT_KEY = "qarz-eslatma";
 export async function isDebtAlertOn() {
   return readFlag(DEBT_ALERT_KEY, false);
 }
+
+/**
+ * Narx eslatmasi Telegram'ga yuborilsinmi: arzonaptekadagi dorilardan
+ * narxi tavsiyaga mos kelmaganlari.
+ *
+ * Standart holat — YOQIQ (dorixona egasi o'zi so'ragan). Narx nazorati
+ * bo'limidagi kalitcha bilan o'chiriladi.
+ */
+export const PRICE_ALERT_KEY = "narx-eslatma";
+
+export async function isPriceAlertOn() {
+  return readFlag(PRICE_ALERT_KEY, true);
+}

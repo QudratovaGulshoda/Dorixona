@@ -7,6 +7,7 @@ import { isFaptekaExpenseTitle, isFaptekaSku } from "@/lib/integrations/fapteka/
 import { unitWhere } from "@/lib/filial";
 import { currentFilial } from "@/lib/filial-server";
 import { overlayRetail, retailByLocalDate, retailDaily, retailTotals, utcDay } from "@/lib/monthly-finance";
+import { ensurePriceWatchListed } from "@/lib/price-watch";
 
 /**
  * F-Apteka hujjat turi (DOCTYPE) nimani bildiradi.
@@ -1652,3 +1653,75 @@ export async function getPriceWatchData(query: PriceQuery = {}) {
     lastChecked,
   };
 }
+
+/**
+ * "Narx nazorati ro'yxati" — arzonapteka.uz da kuzatiladigan dorilar.
+ *
+ * Yangi qo'shilgani tepada: qo'shilgach topildimi, narxi qancha — darrov
+ * ko'rinsin. Tavsiya = arzonaptekadagi eng arzon narx + ustama; topilmagan
+ * yoki narxi hali olinmagan dorida tavsiya yo'q (null → "—").
+ */
+export async function getPriceWatchList(percent: number) {
+  try {
+    await ensurePriceWatchListed();
+  } catch {
+    return [];
+  }
+  const branchId = await getBranchId();
+  const rows = await db.$queryRaw<
+    {
+      id: string;
+      name: string;
+      sourceUrl: string | null;
+      sourceTitle: string | null;
+      competitorPrice: unknown;
+      percent: unknown;
+      checkedAt: Date | null;
+      productName: string | null;
+      salePrice: unknown;
+    }[]
+  >`
+    SELECT w.id, w.name, w."sourceUrl", w."sourceTitle", w."competitorPrice", w.percent,
+           w."checkedAt", p.name AS "productName", p."salePrice"
+    FROM "PriceWatch" w
+    LEFT JOIN LATERAL (
+      SELECT name, "salePrice" FROM "Product"
+      WHERE sku = w.sku AND "branchId" = ${branchId}
+      LIMIT 1
+    ) p ON true
+    WHERE w.listed = true
+    ORDER BY w."createdAt" DESC, w.name ASC
+  `;
+
+  return rows.map((row) => {
+    const competitor = row.competitorPrice === null ? null : num(row.competitorPrice);
+    const ownPercent = row.percent === null ? null : num(row.percent);
+    const suggested = competitor === null ? null : Math.round(competitor * (1 + (ownPercent ?? percent) / 100));
+    const our = row.salePrice === null ? null : num(row.salePrice);
+    // Havola yo'q: izlangan bo'lsa — topilmadi, bo'lmasa — navbatda
+    const status = row.sourceUrl
+      ? competitor === null
+        ? ("waiting" as const)
+        : ("ok" as const)
+      : row.checkedAt
+        ? ("missing" as const)
+        : ("searching" as const);
+    return {
+      id: row.id,
+      name: row.name,
+      productName: row.productName,
+      sourceUrl: row.sourceUrl,
+      sourceTitle: row.sourceTitle,
+      competitor,
+      ownPercent,
+      percent: ownPercent ?? percent,
+      suggested,
+      our,
+      diff: suggested !== null && our !== null ? our - suggested : null,
+      status,
+      checkedAt: row.checkedAt,
+    };
+  });
+}
+
+export type PriceWatchListItem = Awaited<ReturnType<typeof getPriceWatchList>>[number];
