@@ -5,7 +5,9 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { PRICE_ALERT_KEY, writeFlag } from "@/lib/app-settings";
 import { parsePriceListWorkbook, type PriceListEntry } from "@/lib/price-list-excel";
-import { ensurePriceWatchListed, refreshPriceWatch, searchCompetitorLinks } from "@/lib/price-watch";
+import { checkWatchedPrices, ensurePriceWatchListed, refreshPriceWatch, searchCompetitorLinks } from "@/lib/price-watch";
+import { priceAlertMessage } from "@/lib/telegram/digest";
+import { recipientsFor, sendTelegram } from "@/lib/telegram/notify";
 import { fail, requireUser, type ActionResult } from "./_shared";
 
 /** Har bir dorixona uchun ustama: yoqilgan/o'chirilgan va foizi */
@@ -338,6 +340,43 @@ export async function setPriceAlert(enabled: boolean): Promise<ActionResult> {
     await writeFlag(PRICE_ALERT_KEY, enabled);
     revalidatePath("/narxlar");
     return { ok: true };
+  } catch (e) {
+    return fail(e);
+  }
+}
+
+/**
+ * Narx eslatmasini oldindan ko'rish — tokenli havolasiz, saytning o'zida.
+ * Matn eslatmadagidek (Telegram HTML: faqat <b>, <i>).
+ */
+export async function previewPriceAlert(): Promise<{ ok: true; text: string | null } | { ok: false; error: string }> {
+  try {
+    await requireUser();
+    return { ok: true, text: priceAlertMessage(await checkWatchedPrices()) };
+  } catch (e) {
+    return fail(e);
+  }
+}
+
+/**
+ * Eslatmani hozir yuborish — tekshirib ko'rish uchun. Kunlik eslatma
+ * jurnaliga yozilmaydi, shuning uchun ertalabki o'z vaqtida yana keladi.
+ */
+export async function sendPriceAlertNow(): Promise<{ ok: true; sent: number; total: number } | { ok: false; error: string }> {
+  try {
+    await requireUser();
+    const text = priceAlertMessage(await checkWatchedPrices());
+    if (!text) return { ok: false, error: "Yuboradigan narsa yo'q — hammasi tavsiyaga mos" };
+    const recipients = await recipientsFor("narxlar");
+    if (!recipients.length) return { ok: false, error: "Oluvchi yo'q: Telegram bog'langan admin yoki xodim topilmadi" };
+    const results = await sendTelegram(
+      recipients.map((r) => r.chatId),
+      text,
+      { buttonText: "Narxlarni ochish", section: "prices" },
+    );
+    const sent = results.filter((r) => r.ok).length;
+    if (!sent) return { ok: false, error: results[0]?.error ?? "Yuborilmadi" };
+    return { ok: true, sent, total: results.length };
   } catch (e) {
     return fail(e);
   }

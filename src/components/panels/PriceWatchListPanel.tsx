@@ -189,7 +189,8 @@ export function PriceWatchListPanel({ items }: { items: Item[] }) {
         <span className="ml-auto text-xs text-muted">{formatNumber(items.length)} ta dori</span>
       </div>
 
-      <div className="overflow-x-auto">
+      {/* Ro'yxat uzun bo'lsa sahifani cho'zmasin — o'zi ichida aylanadi */}
+      <div className="max-h-[480px] overflow-auto">
         <table className="data-table">
           <thead>
             <tr>

@@ -1,5 +1,6 @@
 import { Card, MetricCard, PageHeader } from "@/components/ui";
 import { AlertToggle } from "@/components/AlertToggle";
+import { PriceAlertPreview } from "@/components/PriceAlertPreview";
 import { PricePanel } from "@/components/panels/PricePanel";
 import { PriceWatchListPanel } from "@/components/panels/PriceWatchListPanel";
 import { setPriceAlert } from "@/lib/actions/prices";
@@ -43,13 +44,16 @@ export default async function NarxlarPage({
         </div>
       )}
 
-      <div className="mb-5 sm:max-w-md">
-        <AlertToggle
-          enabled={alertOn}
-          label="Narx eslatmasi"
-          onText="Arzonaptekadagi dorilardan narxi tavsiyaga mos kelmaganlari har kuni ombor eslatmasidan yarim soat keyin keladi"
-          action={setPriceAlert}
-        />
+      <div className="mb-5 flex flex-wrap items-stretch gap-2">
+        <div className="min-w-0 flex-1 sm:max-w-md">
+          <AlertToggle
+            enabled={alertOn}
+            label="Narx eslatmasi"
+            onText="Arzonaptekadagi dorilardan narxi tavsiyaga mos kelmaganlari har kuni ombor eslatmasidan yarim soat keyin keladi"
+            action={setPriceAlert}
+          />
+        </div>
+        <PriceAlertPreview />
       </div>
 
       <div className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -77,6 +81,11 @@ export default async function NarxlarPage({
         />
       </div>
 
+      {/* Ro'yxat tepada: dori qo'shish, Excel yuklash va namuna shu yerda */}
+      <Card title="Arzonapteka ro'yxati — dori qo'shish va Excel yuklash" icon="📋" className="mb-5">
+        <PriceWatchListPanel items={list} />
+      </Card>
+
       <Card title="Dorilar ro'yxati" icon="💹">
         <PricePanel
           items={d.items}
@@ -89,10 +98,6 @@ export default async function NarxlarPage({
           topCount={d.topCount}
           slowCount={d.slowCount}
         />
-      </Card>
-
-      <Card title="Arzonapteka ro'yxati" icon="📋" className="mt-5">
-        <PriceWatchListPanel items={list} />
       </Card>
     </div>
   );
