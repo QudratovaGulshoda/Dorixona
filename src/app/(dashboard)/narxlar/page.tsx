@@ -47,7 +47,7 @@ export default async function NarxlarPage({
         <AlertToggle
           enabled={alertOn}
           label="Narx eslatmasi"
-          onText="Arzonaptekadagi dorilardan narxi tavsiyaga mos kelmaganlari har kuni 10:00 da keladi"
+          onText="Arzonaptekadagi dorilardan narxi tavsiyaga mos kelmaganlari har kuni ombor eslatmasidan yarim soat keyin keladi"
           action={setPriceAlert}
         />
       </div>

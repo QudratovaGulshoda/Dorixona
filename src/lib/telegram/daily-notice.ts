@@ -69,6 +69,12 @@ export type NoticeOptions = {
   permission: AppPermission;
   buttonText: string;
   section: string;
+  /**
+   * Boshqa eslatmadan keyin kelsin: o'sha bugun yuborilgan bo'lsa undan
+   * shuncha daqiqa o'tgach. U yubormagan bo'lsa (aytadigan narsasi
+   * yo'q) — fallbackHour dan keyin.
+   */
+  after?: { source: string; minutes: number; fallbackHour: number };
   /** Sahifadagi kalitcha bilan o'chirilgan bo'lsa false — xabar ketmaydi */
   enabled?: () => Promise<boolean>;
   /** Xabar matni; ogohlantiradigan narsa bo'lmasa null */
@@ -106,6 +112,22 @@ export async function runDailyNotice(request: NextRequest, options: NoticeOption
   if (!text) return NextResponse.json({ ...javob, yuborildi: 0, sabab: "aytadigan narsa yo'q" });
   if (!force && hour < options.minHour) {
     return NextResponse.json({ ...javob, yuborildi: 0, sabab: `hali erta (${options.minHour}:00 dan keyin)` });
+  }
+  if (!force && options.after) {
+    const { source, minutes, fallbackHour } = options.after;
+    const before = await sentToday(source);
+    const ready = before
+      ? Date.now() >= before.createdAt.getTime() + minutes * 60_000
+      : hour >= fallbackHour;
+    if (!ready) {
+      return NextResponse.json({
+        ...javob,
+        yuborildi: 0,
+        sabab: before
+          ? `"${source}" dan ${minutes} daqiqa keyin`
+          : `"${source}" hali yubormagan (${fallbackHour}:00 gacha kutiladi)`,
+      });
+    }
   }
   if (!recipients.length) {
     return NextResponse.json({ ...javob, yuborildi: 0, sabab: "oluvchi yo'q" });

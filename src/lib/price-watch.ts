@@ -357,7 +357,7 @@ export async function checkWatchedPrices() {
   await ensurePriceWatchListed();
   const units = otdelUnitMap();
 
-  const [settings, rows, latest] = await Promise.all([
+  const [settings, rows, latest, missingRows] = await Promise.all([
     db.priceSetting.findMany(),
     db.$queryRaw<
       { otdel: string; price: unknown; competitorPrice: unknown; percent: unknown; name: string }[]
@@ -377,6 +377,18 @@ export async function checkWatchedPrices() {
       orderBy: { checkedAt: "desc" },
       select: { checkedAt: true },
     }),
+    // Ro'yxatda bor, omborda bor, lekin arzonaptekada narxi yo'q (topilmagan
+    // yoki narxi hali olinmagan) — bularni qo'lda tekshirish kerak
+    db.$queryRaw<{ name: string; qty: unknown; topilgan: boolean }[]>`
+      SELECT COALESCE(MAX(p.name), w.name) AS name, SUM(fp.qty) AS qty,
+             (w."sourceUrl" IS NOT NULL) AS topilgan
+      FROM "PriceWatch" w
+      JOIN "FaptekaPrice" fp ON w.sku = 'FA:' || fp.fid
+      LEFT JOIN LATERAL (SELECT name FROM "Product" WHERE sku = w.sku LIMIT 1) p ON true
+      WHERE w.active = true AND w.listed = true AND w."competitorPrice" IS NULL AND fp.qty > 0
+      GROUP BY w.id, w.name, w."sourceUrl"
+      ORDER BY SUM(fp.qty) DESC
+    `,
   ]);
 
   const result = new Map<string, UnitPriceCheck>();
@@ -418,5 +430,12 @@ export async function checkWatchedPrices() {
     check.raise.sort(byGap);
   }
 
-  return { units: Array.from(result.values()), checkedAt: latest?.checkedAt ?? null };
+  const missing = missingRows.map((row) => ({
+    name: row.name,
+    stock: Math.round(Number(row.qty)),
+    /** Havolasi bor, narxi hali olinmagan — ertaga o'zi keladi */
+    waiting: row.topilgan,
+  }));
+
+  return { units: Array.from(result.values()), missing, checkedAt: latest?.checkedAt ?? null };
 }

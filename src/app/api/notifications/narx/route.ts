@@ -16,12 +16,14 @@ export const maxDuration = 60;
  * F-Apteka'da qanchaga o'zgartirish kerak. Hammasi joyida bo'lsa xabar
  * yuborilmaydi.
  *
+ * Qachon: ombor ogohlantirishidan yarim soat keyin (ikkisi ustma-ust
+ * kelmasin). Ombor xabari bo'lmagan kuni — 10:00 dan keyin.
  * Kim oladi: "narxlar" ruxsati bo'lganlar.
  * Yoqish/o'chirish: Narx nazorati bo'limidagi kalitcha.
  *
  * Tekshirish (yubormaydi): /api/notifications/narx?token=<...>&tekshir=1
  */
-const SEND_AFTER_HOUR = 10;
+const SEND_AFTER_HOUR = 9;
 
 async function handle(request: NextRequest) {
   return runDailyNotice(request, {
@@ -30,6 +32,7 @@ async function handle(request: NextRequest) {
     permission: "narxlar",
     buttonText: "Narxlarni ochish",
     section: "prices",
+    after: { source: "ombor-ogohlantirish", minutes: 30, fallbackHour: 10 },
     enabled: isPriceAlertOn,
     build: async () => {
       const check = await checkWatchedPrices();
@@ -43,6 +46,7 @@ async function handle(request: NextRequest) {
             tushirish: unit.lower.length,
             kotarish: unit.raise.length,
           })),
+          narxiYoq: check.missing.length,
         },
       };
     },

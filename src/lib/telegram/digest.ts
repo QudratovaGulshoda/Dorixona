@@ -414,21 +414,26 @@ const PRICE_ALERT_LINES = 12;
  * Narx eslatmasi: arzonaptekada kuzatilayotgan dorilardan narxi tavsiyaga
  * mos kelmaganlari, dorixona bo'yicha. Narx F-Apteka'da qo'lda
  * o'zgartiriladi — xabar shuning uchun aniq yangi narxni aytadi.
+ * Oxirida — ro'yxatda va omborda bor, lekin arzonaptekada narxi yo'q
+ * dorilar (qo'lda tekshirish uchun).
  *
- * Hamma dorixonada hammasi joyida bo'lsa null — xabar yuborilmaydi.
+ * Hammasi joyida va narxsizi ham yo'q bo'lsa null — xabar yuborilmaydi.
  */
 export function priceAlertMessage(check: Awaited<ReturnType<typeof checkWatchedPrices>>) {
   const active = check.units.filter((unit) => unit.enabled);
   const wrong = active.reduce((sum, unit) => sum + unit.lower.length + unit.raise.length, 0);
-  if (!wrong) return null;
+  if (!wrong && !check.missing.length) return null;
 
+  // Ro'yxat qirqilgan bo'lsa aytib qo'yamiz — ombor xabaridagidek
+  const more = (shown: number, total: number) =>
+    total > shown ? `\n… yana ${som(total - shown)} ta` : "";
   const line = (item: PriceMismatch) =>
     `• ${esc(item.name)}${item.ownPercent !== null ? ` <i>(${item.ownPercent}%)</i>` : ""} — ` +
     `${som(item.our)} → <b>${som(item.suggested)}</b>`;
   const list = (title: string, items: PriceMismatch[]) =>
     items.length
       ? `${title} (${items.length} ta):\n${items.slice(0, PRICE_ALERT_LINES).map(line).join("\n")}` +
-        (items.length > PRICE_ALERT_LINES ? `\n  … yana ${items.length - PRICE_ALERT_LINES} ta — saytda` : "")
+        more(Math.min(items.length, PRICE_ALERT_LINES), items.length)
       : "";
 
   const blocks = active.map((unit) => {
@@ -441,10 +446,21 @@ export function priceAlertMessage(check: Awaited<ReturnType<typeof checkWatchedP
       .join("\n");
   });
 
+  const missing = check.missing.slice(0, PRICE_ALERT_LINES);
+
   return [
     `💹 <b>Narxni F-Apteka'da to'g'rilang</b>`,
     `Arzonaptekadagi eng arzon narx + ustama. Hozirgi narx → <b>qo'yiladigan narx</b>.`,
     ...blocks.map((block) => `\n${block}`),
+    missing.length
+      ? `\n❔ Arzonaptekada narxi yo'q (${som(check.missing.length)} ta):\n${missing
+          .map(
+            (item) =>
+              `• ${esc(item.name)} — ${som(item.stock)} dona qoldi, ` +
+              (item.waiting ? "narxi olinmoqda" : "saytda topilmadi"),
+          )
+          .join("\n")}` + more(missing.length, check.missing.length)
+      : "",
     check.checkedAt ? `\n<i>Arzonapteka narxlari: ${formatDateTime(check.checkedAt)} holatiga</i>` : "",
   ]
     .filter(Boolean)
