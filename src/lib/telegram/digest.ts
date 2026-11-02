@@ -277,11 +277,9 @@ const RUNNING_OUT_MIN_SOLD = 20;
 /**
  * Tugayotgan dorilar: qoldig'i oz, lekin tez ketadi.
  *
- * "Qoldiq 0" deb izlash ishlamaydi: SITE.exe faqat qoldig'i bor tovarni
- * yuboradi, dori butunlay tugasa push'dan chiqib ketadi va bizdagi son
- * oxirgi ko'rsatkichda qotib qoladi. Tekshirilgan: qoldig'i 0 bo'lgan
- * 1207 ta dorining birortasi ham oxirgi 60 kunda sotilmagan — ular
- * allaqachon tashlab ketilganlar.
+ * "Qoldiq 0" deb izlashning o'zi yetmaydi: qoldig'i 0 dorilarning
+ * ko'pchiligi allaqachon tashlab ketilganlar. (SITE.exe push'idan chiqib
+ * ketgan — tugagan — dorilar endi syncFaptekaSiteRows'da 0 ga tushiriladi.)
  *
  * Shuning uchun boshqa tomondan qaraymiz: qoldig'i RUNNING_OUT_STOCK dan
  * kam VA oxirgi oyda RUNNING_OUT_MIN_SOLD donadan ko'p sotilgan. Bu

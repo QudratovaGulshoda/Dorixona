@@ -143,7 +143,7 @@ export async function POST(request: NextRequest) {
         rowCount: summary.receivedRows,
         keys: keys.join(", ").slice(0, 2000),
         sample: JSON.stringify(rows[0] ?? {}).slice(0, 2000),
-        note: `upsert=${summary.productsUpserted}, skip=${summary.skippedRows}` +
+        note: `upsert=${summary.productsUpserted}, skip=${summary.skippedRows}, tugagan=${summary.stockZeroed}` +
           (otdels ? ` | ${otdels}` : " | otdel yo'q") +
           (stockByUnit.length ? ` | astatka: ${stockByUnit.join(", ")}` : "") +
           revaluationNote,

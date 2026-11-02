@@ -10,6 +10,7 @@ import {
   FAPTEKA_EXPENSE_PREFIX_OLD,
   FAPTEKA_RECEIPT_PREFIX,
   FAPTEKA_REPORTS,
+  FAPTEKA_SKU_PREFIX,
   faptekaExpenseTitle,
   faptekaReceipt,
   faptekaSku,
@@ -44,6 +45,8 @@ export type FaptekaSitePushSummary = {
   receivedRows: number;
   productsUpserted: number;
   skippedRows: number;
+  /** Push'da yo'q (tugagan) dorilar — qoldig'i 0 ga tushirildi */
+  stockZeroed: number;
   errors: string[];
 };
 
@@ -626,6 +629,7 @@ export async function syncFaptekaSiteRows(rows: FaptekaRow[]): Promise<FaptekaSi
     receivedRows: rows.length,
     productsUpserted: 0,
     skippedRows: 0,
+    stockZeroed: 0,
     errors: [],
   };
 
@@ -692,6 +696,28 @@ export async function syncFaptekaSiteRows(rows: FaptekaRow[]): Promise<FaptekaSi
     } catch (error) {
       summary.ok = false;
       summary.errors.push(error instanceof Error ? error.message : "F-Apteka mahsulotlari batch saqlanmadi");
+    }
+  }
+
+  // SITE.exe faqat qoldig'i bor dorini yuboradi: dori tugasa push'dan
+  // chiqib ketadi va Product.stock oxirgi sonda qotib qolardi (ombor,
+  // "Umumiy" qiymati va ogohlantirishlar shu eski son bilan ishlardi).
+  // Push'da yo'q F-Apteka dorilari qoldig'ini 0 qilamiz — lekin faqat
+  // push to'liq bo'lsa: hamma dorixona keldi va batch'lar xatosiz yozildi.
+  // Aks holda bir dorixona kelmay qolsa, uning dorilari nolga tushib ketardi.
+  const pushedOtdels = new Set(rows.map((row) => (row.O ?? "").trim()).filter(Boolean));
+  const fullSnapshot = [...otdelUnitMap().keys()].every((otdel) => pushedOtdels.has(otdel));
+  if (summary.ok && fullSnapshot && productsBySku.size > 0) {
+    try {
+      summary.stockZeroed = await db.$executeRaw`
+        UPDATE "Product" SET "stock" = 0, "updatedAt" = NOW()
+        WHERE "branchId" = ${branch.id}
+          AND "sku" LIKE ${`${FAPTEKA_SKU_PREFIX}%`}
+          AND "stock" > 0
+          AND NOT ("sku" = ANY(${[...productsBySku.keys()]}::text[]))`;
+    } catch (error) {
+      summary.ok = false;
+      summary.errors.push(error instanceof Error ? error.message : "Tugagan dorilar qoldig'i nolga tushirilmadi");
     }
   }
 

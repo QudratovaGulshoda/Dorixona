@@ -56,8 +56,11 @@ export async function syncOtdelStockValue(rows: Row[]): Promise<OtdelStockResult
 
   const branch = map.size > 0 ? await db.branch.findFirst({ where: { isActive: true } }) : null;
 
-  const now = new Date();
-  const periodMonth = new Date(Date.UTC(now.getFullYear(), now.getMonth(), 1));
+  // Oy Toshkent vaqti (UTC+5) bo'yicha: Vercel UTC'da ishlaydi va oyning
+  // 1-kuni 00:00–05:00 orasidagi push'lar o'tgan oyning astatkasini
+  // ustidan yozib ketardi
+  const tashkent = new Date(Date.now() + 5 * 3600_000);
+  const periodMonth = new Date(Date.UTC(tashkent.getUTCFullYear(), tashkent.getUTCMonth(), 1));
 
   const results: OtdelStockResult[] = [];
   for (const [otdelId, entry] of totals) {
